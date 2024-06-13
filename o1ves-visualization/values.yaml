@@ -1,0 +1,72 @@
+fullnameOverride: o1ves
+
+grafana:
+  fullnameOverride: o1ves-grafana
+  enabled: true
+  defaultDashboardsTimezone: Asia/Taipei
+  adminPassword: smo
+  service:
+    type: NodePort
+    nodePort: 30000
+  persistence:
+    enabled: true
+    storageClassName: "local-storage-grafana"
+    size: 10Gi
+
+influxdb2:
+  fullnameOverride: o1ves-influxdb2
+  enabled: true
+  persistence:
+    enabled: true
+    storageClass: "local-storage-influxdb2"
+    accessMode: ReadWriteOnce
+    size: 50Gi
+    mountPath: /var/lib/influxdb2
+    subPath: ""
+  image:
+    repository: influxdb
+    tag: 2.3.0-alpine
+    pullPolicy: IfNotPresent
+  service:
+    type: NodePort
+    port: 80
+    targetPort: 8086
+    nodePort: 30001
+    annotations: {}
+    labels: {}
+    portName: http
+
+dmaap-influxdb-adapter:
+  enabled: true
+  image: 
+    repository: harbor.winfra.cs.nycu.edu.tw/winlab-oran/dmaap-influxdb-adapter
+  influxdb: 
+    host: o1ves-influxdb2
+    port: 80
+    tokenSecret: o1ves-influxdb2-auth
+    org: influxdata
+  logLevel: INFO
+
+  rules:
+    - topic: unauthenticated.SEC_FAULT_OUTPUT
+      rules:
+        - bucket: fault
+          measurement: fault
+          matches: 
+            - key: event.commonEventHeader.domain
+              value: fault
+          tags:
+            - key: type
+              value: test
+            - key: sourceId
+              field: event.commonEventHeader.sourceId
+          fields:
+            - key: faultFieldsVersion
+              field: event.faultFields.faultFieldsVersion
+              type: string
+
+buckets:
+  - name: fault
+
+image:
+  pullPolicy: IfNotPresent
